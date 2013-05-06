@@ -1,3 +1,35 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <f:entry title="${%Server URL}" field="serverUrl">
+        <f:textbox />
+    </f:entry>
 
+    <f:entry title="${%Login name}" field="userName">
+        <f:textbox />
+        <i>(including domain name)</i>
+    </f:entry>
+
+    <f:entry title="${%User password}" field="userPassword">
+        <f:password />
+    </f:entry>
+
+    <f:entry title="${%Project Locations}">
+        <f:repeatable var="loc" name="locations" items="${instance.locations}" noAddButton="true" minimum="1">
+            <table width="100%">
+                <f:entry title="${%Project path}" field="projectPath">
+                    <f:textbox default="$/" value="${loc.projectPath}" />
+                </f:entry>
+                <f:entry title="${%Local directory}" field="localDirectory">
+                    <f:textbox value="${loc.localDirectory}" />
+                </f:entry>
+                <f:entry>
+                    <div align="right">
+                        <input type="button" value="${%Add more locations...}" class="repeatable-add show-if-last" />
+                        <input type="button" value="${%Delete}" class="repeatable-delete show-if-not-only" style="margin-left: 1em;" />
+                    </div>
+                </f:entry>
+            </table>
+        </f:repeatable>
+    </f:entry>
+
+    <t:listScmBrowsers name="tfs2.browser" />
 </j:jelly>
