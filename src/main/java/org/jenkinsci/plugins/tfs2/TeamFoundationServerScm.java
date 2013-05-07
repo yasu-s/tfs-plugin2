@@ -65,32 +65,27 @@ public class TeamFoundationServerScm extends SCM {
     }
 
     @Override
-    public SCMRevisionState calcRevisionsFromBuild(AbstractBuild<?, ?> build,
-            Launcher launcher, TaskListener listener) throws IOException,
-            InterruptedException {
-        return null;
+    public SCMRevisionState calcRevisionsFromBuild(AbstractBuild<?, ?> build, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
+        return new TFSChangeSetState();
     }
 
     @Override
-    protected PollingResult compareRemoteRevisionWith(
-            AbstractProject<?, ?> project, Launcher launcher,
-            FilePath workspace, TaskListener listener, SCMRevisionState baseline)
-            throws IOException, InterruptedException {
-        return null;
+    protected PollingResult compareRemoteRevisionWith(AbstractProject<?, ?> project, Launcher launcher, FilePath workspace, TaskListener listener, SCMRevisionState baseline) throws IOException, InterruptedException {
+        if (project.getLastBuild() == null)
+            return PollingResult.BUILD_NOW;
+
+        return PollingResult.NO_CHANGES;
     }
 
     @Override
-    public boolean checkout(AbstractBuild<?, ?> build, Launcher launcher,
-            FilePath workspace, BuildListener listener, File changelogFile)
-            throws IOException, InterruptedException {
+    public boolean checkout(AbstractBuild<?, ?> build, Launcher launcher, FilePath workspace, BuildListener listener, File changelogFile) throws IOException, InterruptedException {
         return false;
     }
 
     @Override
     public ChangeLogParser createChangeLogParser() {
-        return null;
+        return new ChangeSetLogParser();
     }
-
 
     @Override
     public DescriptorImpl getDescriptor() {
