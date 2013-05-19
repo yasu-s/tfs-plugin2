@@ -23,4 +23,8 @@
         <f:textbox default="DefaultCollection" />
     </f:entry>
 
+    <f:entry title="${%Project}" field="project">
+        <f:textbox default="MyProject" />
+    </f:entry>
+
 </j:jelly>

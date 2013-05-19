@@ -7,20 +7,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
 
-import net.sf.json.JSONObject;
-
+import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tfs2.browsers.TeamFoundationServerRepositoryBrowser;
 import org.jenkinsci.plugins.tfs2.service.TFSService;
-import org.jenkinsci.plugins.tfs2.util.ChangeSetFileUtil;
+import org.jenkinsci.plugins.tfs2.util.TFSUtil;
 import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.export.ExportedBean;
 
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.Util;
 import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 import hudson.model.AbstractBuild;
@@ -34,28 +32,27 @@ import hudson.scm.SCMRevisionState;
 public class TeamFoundationServerScm extends SCM {
 
     private final String serverUrl;
-    private final String projectCollection;
     private final String userName;
     private final String userPassword;
     private ProjectLocation[] locations = new ProjectLocation[0];
     private final TeamFoundationServerRepositoryBrowser browser;
+    private final String excludedRegions;
+    private final String includedRegions;
 
     @DataBoundConstructor
-    public TeamFoundationServerScm(String serverUrl, String projectCollection, String userName, String userPassword, List<ProjectLocation> locations, TeamFoundationServerRepositoryBrowser browser) {
-        this.serverUrl         = serverUrl;
-        this.projectCollection = projectCollection;
-        this.userName          = userName;
-        this.userPassword      = userPassword;
-        this.locations         = locations.toArray(new ProjectLocation[locations.size()]);
-        this.browser           = browser;
+    public TeamFoundationServerScm(String serverUrl, String userName, String userPassword, List<ProjectLocation> locations,
+                                    TeamFoundationServerRepositoryBrowser browser, String excludedRegions, String includedRegions) {
+        this.serverUrl       = serverUrl;
+        this.userName        = userName;
+        this.userPassword    = userPassword;
+        this.locations       = locations.toArray(new ProjectLocation[locations.size()]);
+        this.browser         = browser;
+        this.excludedRegions = excludedRegions;
+        this.includedRegions = includedRegions;
     }
 
     public String getServerUrl() {
         return serverUrl;
-    }
-
-    public String getProjectCollection() {
-        return projectCollection;
     }
 
     public String getUserName() {
@@ -75,9 +72,61 @@ public class TeamFoundationServerScm extends SCM {
         return browser;
     }
 
+    public String getExcludedRegions() {
+        return excludedRegions;
+    }
+
+    public String[] getExcludedRegionsNormalized() {
+        return StringUtils.isBlank(excludedRegions) ? null : excludedRegions.split("[\\r\\n]+");
+    }
+
+    public Pattern[] getExcludedRegionsPatterns() {
+        String[] excluded = getExcludedRegionsNormalized();
+        if (excluded != null) {
+            Pattern[] patterns = new Pattern[excluded.length];
+
+            int i = 0;
+            for (String excludedRegion : excluded) {
+                patterns[i++] = Pattern.compile(excludedRegion);
+            }
+
+            return patterns;
+        }
+
+        return new Pattern[0];
+    }
+
+    public String getIncludedRegions() {
+        return includedRegions;
+    }
+
+    public String[] getIncludedRegionsNormalized() {
+        return StringUtils.isBlank(includedRegions) ? null : includedRegions.split("[\\r\\n]+");
+    }
+
+    public Pattern[] getIncludedRegionsPatterns() {
+        String[] included = getIncludedRegionsNormalized();
+        if (included != null) {
+            Pattern[] patterns = new Pattern[included.length];
+
+            int i = 0;
+            for (String includedRegion : included) {
+                patterns[i++] = Pattern.compile(includedRegion);
+            }
+
+            return patterns;
+        }
+
+        return new Pattern[0];
+    }
+
+    public File getChangeSetFilePath(AbstractProject<?, ?> job) {
+        return new File(job.getRootDir(), "changeSet.txt");
+    }
+
     @Override
     public SCMRevisionState calcRevisionsFromBuild(AbstractBuild<?, ?> build, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
-        Map<String, Integer> changeSets = ChangeSetFileUtil.parseChangeSetFile(build);
+        Map<String, Integer> changeSets = TFSUtil.parseChangeSetFile(getChangeSetFilePath(build.getProject()), locations);
         return new TFSChangeSetState(changeSets);
     }
 
@@ -114,17 +163,12 @@ public class TeamFoundationServerScm extends SCM {
     }
 
     private Map<String, Integer> getRemoteChangeSets() {
-        TFSService service = new TFSService();
-        service.setNativeDirectory(getDescriptor().getNativeDirectory());
-        service.setServerUrl(serverUrl);
-        service.setUserName(userName);
-        service.setUserPassword(userPassword);
-        service.init();
+        TFSService service = new TFSService(serverUrl, userName, userPassword);
 
         Map<String, Integer> changeSets = new HashMap<String, Integer>();
         for (ProjectLocation location : locations) {
             if (service.pathExists(location.getProjectPath())) {
-                int changeSetID = service.getChangeSetID(location.getProjectPath());
+                int changeSetID = service.getChangeSetID(location.getProjectPath(), getExcludedRegionsPatterns(), getIncludedRegionsPatterns());
                 changeSets.put(location.getProjectPath(), changeSetID);
             }
         }
@@ -134,7 +178,14 @@ public class TeamFoundationServerScm extends SCM {
 
     @Override
     public boolean checkout(AbstractBuild<?, ?> build, Launcher launcher, FilePath workspace, BuildListener listener, File changelogFile) throws IOException, InterruptedException {
-        return false;
+        Map<String, Integer> changeSets = getRemoteChangeSets();
+
+
+        TFSUtil.saveChangeSetFile(getChangeSetFilePath(build.getProject()), changeSets);
+
+
+
+        return true;
     }
 
     @Override
@@ -150,33 +201,14 @@ public class TeamFoundationServerScm extends SCM {
     @Extension
     public static class DescriptorImpl extends SCMDescriptor<TeamFoundationServerScm> {
 
-        private static final String PROPERTY_NAME_NATIVE_DIRECTORY = "com.microsoft.tfs.jni.native.base-directory";
-        private String nativeDirectory = null;
-
         public DescriptorImpl() {
             super(TeamFoundationServerRepositoryBrowser.class);
             load();
         }
 
         @Override
-        public SCM newInstance(StaplerRequest req, JSONObject jsonObject) throws FormException {
-            return super.newInstance(req, jsonObject);
-        }
-
-        @Override
-        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
-            nativeDirectory = Util.fixEmpty(req.getParameter("tfs2.nativeDirectory").trim());
-            save();
-            return true;
-        }
-
-        @Override
         public String getDisplayName() {
             return Messages.TeamFoundationServerScm_Descriptor_DisplayName();
-        }
-
-        public String getNativeDirectory() {
-            return nativeDirectory;
         }
     }
 
