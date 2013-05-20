@@ -113,4 +113,13 @@ public abstract class TFSUtil {
         return sb.toString();
     }
 
+    public static void saveChangeLogFile(File changelogFile, File previousFile, File thisFile) throws IOException, InterruptedException {
+        PrintWriter w = null;
+        try {
+            w = new PrintWriter(new FileOutputStream(changelogFile));
+
+        } finally {
+            if (w != null) w.close();
+        }
+    }
 }

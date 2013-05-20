@@ -8,6 +8,7 @@ import org.jenkinsci.plugins.tfs2.util.Constants;
 
 import com.microsoft.tfs.core.TFSTeamProjectCollection;
 import com.microsoft.tfs.core.clients.versioncontrol.VersionControlClient;
+import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Change;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Changeset;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Item;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.ItemType;
@@ -102,5 +103,17 @@ public class TFSService {
         item.getLinks().add(link);
         item.getFields().getField(Constants.WORK_ITEM_FIELDS_NAME_HISTORY).setValue(history);
         item.save();
+    }
+
+    public List<ChangeItem> getChangeItems(int changeSetID) {
+        Changeset changeSet = getChangeSet(changeSetID);
+        List<ChangeItem> items = new ArrayList<ChangeItem>();
+        for (Change change : changeSet.getChanges()) {
+            ChangeItem item = new ChangeItem();
+            item.setPath(change.getItem().getServerItem());
+            item.setChangeType(change.getChangeType());
+            items.add(item);
+        }
+        return items;
     }
 }

@@ -120,13 +120,13 @@ public class TeamFoundationServerScm extends SCM {
         return new Pattern[0];
     }
 
-    public File getChangeSetFilePath(AbstractProject<?, ?> job) {
-        return new File(job.getRootDir(), "changeSet.txt");
+    public File getChangeSetFile(AbstractBuild<?, ?> build) {
+        return new File(build.getRootDir(), "changeSet.txt");
     }
 
     @Override
     public SCMRevisionState calcRevisionsFromBuild(AbstractBuild<?, ?> build, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
-        Map<String, Integer> changeSets = TFSUtil.parseChangeSetFile(getChangeSetFilePath(build.getProject()), locations);
+        Map<String, Integer> changeSets = TFSUtil.parseChangeSetFile(getChangeSetFile(build), locations);
         return new TFSChangeSetState(changeSets);
     }
 
@@ -181,11 +181,23 @@ public class TeamFoundationServerScm extends SCM {
         Map<String, Integer> changeSets = getRemoteChangeSets();
 
 
-        TFSUtil.saveChangeSetFile(getChangeSetFilePath(build.getProject()), changeSets);
+        TFSUtil.saveChangeSetFile(getChangeSetFile(build), changeSets);
 
-
+        TFSUtil.saveChangeLogFile(changelogFile, getPreviousChangeSetFile(build), getChangeSetFile(build));
 
         return true;
+    }
+
+    private File getPreviousChangeSetFile(AbstractBuild<?, ?> build) {
+        AbstractBuild<?, ?> previousBuild = null;
+        File previousFile = null;
+        while ((previousBuild = build.getPreviousBuild()) != null) {
+            if (getChangeSetFile(previousBuild).exists()) {
+                previousFile = getChangeSetFile(previousBuild);
+                break;
+            }
+        }
+        return previousFile;
     }
 
     @Override
