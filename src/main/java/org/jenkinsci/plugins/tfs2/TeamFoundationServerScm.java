@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tfs2.browsers.TeamFoundationServerRepositoryBrowser;
+import org.jenkinsci.plugins.tfs2.model.LogEntry;
 import org.jenkinsci.plugins.tfs2.service.TFSService;
 import org.jenkinsci.plugins.tfs2.util.TFSUtil;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -183,9 +184,20 @@ public class TeamFoundationServerScm extends SCM {
 
         TFSUtil.saveChangeSetFile(getChangeSetFile(build), changeSets);
 
-        TFSUtil.saveChangeLogFile(changelogFile, getPreviousChangeSetFile(build), getChangeSetFile(build));
+        saveChangeSetLog(build, changelogFile);
 
         return true;
+    }
+
+    private void saveChangeSetLog(AbstractBuild<?, ?> build, File changelogFile) throws IOException, InterruptedException {
+        int previousChangeSetID = TFSUtil.getChangeSetID(getPreviousChangeSetFile(build), locations);
+        int currentChangeSetID  = TFSUtil.getChangeSetID(getChangeSetFile(build), locations);
+
+        TFSService service = new TFSService(serverUrl, userName, userPassword);
+        List<LogEntry> logEntrys = service.getLogEntrys(previousChangeSetID, currentChangeSetID);
+
+        ChangeSetLogWriter writer = new ChangeSetLogWriter();
+        writer.write(changelogFile, logEntrys);
     }
 
     private File getPreviousChangeSetFile(AbstractBuild<?, ?> build) {

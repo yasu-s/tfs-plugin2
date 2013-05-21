@@ -6,9 +6,9 @@ public abstract class Constants {
 
     public static final String WORK_ITEM_FIELDS_NAME_HISTORY = "System.History";
 
-    /** */
-    public static final char EDIT_ADD_CHAR = 'A';
+    public static final char CHANGE_TYPE_ADD = 'A';
 
-    /** */
-    public static final char EDIT_DELETE_CHAR = 'D';
+    public static final char CHANGE_TYPE_DELETE_CHAR = 'D';
+
+    public static final char CHANGE_TYPE_EDIT_CHAR = 'E';
 }

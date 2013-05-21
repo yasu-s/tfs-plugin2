@@ -12,8 +12,9 @@ public class LogEntry extends hudson.scm.ChangeLogSet.Entry {
 
     private int changeSetID;
     private User author;
-    private String date;
+    private long date;
     private String msg;
+    private List<Integer> workItemIDs = new ArrayList<Integer>();
     private List<Path> paths = new ArrayList<Path>();
 
     public int getChangeSetID() {
@@ -31,8 +32,7 @@ public class LogEntry extends hudson.scm.ChangeLogSet.Entry {
 
     @Override
     public long getTimestamp() {
-        // TODO:
-        return date != null ? 0 : -1;
+        return date;
     }
 
     @Override
@@ -53,11 +53,11 @@ public class LogEntry extends hudson.scm.ChangeLogSet.Entry {
     }
 
     @Exported
-    public String getDate() {
+    public long getDate() {
         return date;
     }
 
-    public void setDate(String date) {
+    public void setDate(long date) {
         this.date = date;
     }
 
@@ -91,5 +91,13 @@ public class LogEntry extends hudson.scm.ChangeLogSet.Entry {
             affectedPaths.add(path.getPath());
         }
         return affectedPaths;
+    }
+
+    public void addWorkItemID(int id) {
+        workItemIDs.add(id);
+    }
+
+    public List<Integer> getWorkItemIDs() {
+        return workItemIDs;
     }
 }

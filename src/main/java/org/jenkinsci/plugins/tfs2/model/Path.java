@@ -13,6 +13,10 @@ public class Path implements AffectedFile {
     private char action;
     private String value;
 
+    public char getAction() {
+        return action;
+    }
+
     public void setAction(String action) {
         this.action = action.charAt(0);
     }
@@ -31,12 +35,12 @@ public class Path implements AffectedFile {
     }
 
     public EditType getEditType() {
-        if (action == Constants.EDIT_ADD_CHAR)
+        if (action == Constants.CHANGE_TYPE_ADD)
             return EditType.ADD;
-        else if (action == Constants.EDIT_DELETE_CHAR)
+        else if (action == Constants.CHANGE_TYPE_DELETE_CHAR)
             return EditType.DELETE;
         else
-            return null;
+            return EditType.EDIT;
     }
 
 }

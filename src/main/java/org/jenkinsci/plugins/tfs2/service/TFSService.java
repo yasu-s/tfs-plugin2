@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.jenkinsci.plugins.tfs2.model.LogEntry;
+import org.jenkinsci.plugins.tfs2.model.Path;
 import org.jenkinsci.plugins.tfs2.util.Constants;
 
 import com.microsoft.tfs.core.TFSTeamProjectCollection;
@@ -105,15 +107,32 @@ public class TFSService {
         item.save();
     }
 
-    public List<ChangeItem> getChangeItems(int changeSetID) {
+    public LogEntry getLogEntry(int changeSetID) {
         Changeset changeSet = getChangeSet(changeSetID);
-        List<ChangeItem> items = new ArrayList<ChangeItem>();
+
+        LogEntry logEntry = new LogEntry();
+        logEntry.setChangeSetID(changeSetID);
+        logEntry.setDate(changeSet.getDate().getTimeInMillis());
+        logEntry.setUser(changeSet.getCommitter());
+        logEntry.setMsg(changeSet.getComment());
+
         for (Change change : changeSet.getChanges()) {
-            ChangeItem item = new ChangeItem();
-            item.setPath(change.getItem().getServerItem());
-            item.setChangeType(change.getChangeType());
-            items.add(item);
+            Path path = new Path();
+            path.setAction(change.getChangeType().toString());
+            path.setValue(change.getItem().getServerItem());
+            logEntry.addPath(path);
         }
+
+        for (WorkItem workItem : changeSet.getWorkItems(workItemClient)) {
+            logEntry.addWorkItemID(workItem.getID());
+        }
+
+        return logEntry;
+    }
+
+    public List<LogEntry> getLogEntrys(int previousChangeSetID, int currentChangeSetID) {
+        List<LogEntry> items = new ArrayList<LogEntry>();
+        for (int i = previousChangeSetID; i <= currentChangeSetID; items.add(getLogEntry(i++))) ;
         return items;
     }
 }

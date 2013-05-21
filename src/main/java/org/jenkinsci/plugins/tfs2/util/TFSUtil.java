@@ -68,6 +68,20 @@ public abstract class TFSUtil {
         return changeSets;
     }
 
+    public static int getChangeSetID(File file, ProjectLocation[] locations) throws IOException {
+        Map<String, Integer> changeSets = parseChangeSetFile(file, locations);
+        return getChangeSetID(changeSets);
+    }
+
+    public static int getChangeSetID(Map<String, Integer> changeSets) {
+        int changeSetID = 0;
+        for (Entry<String, Integer> entry : changeSets.entrySet()) {
+            if (changeSetID < entry.getValue())
+                changeSetID = entry.getValue();
+        }
+        return changeSetID;
+    }
+
     public static void saveChangeSetFile(File file, Map<String, Integer> changeSets) throws IOException, InterruptedException  {
         PrintWriter w = null;
         try {
@@ -111,15 +125,5 @@ public abstract class TFSUtil {
         } catch (Exception e) {
         }
         return sb.toString();
-    }
-
-    public static void saveChangeLogFile(File changelogFile, File previousFile, File thisFile) throws IOException, InterruptedException {
-        PrintWriter w = null;
-        try {
-            w = new PrintWriter(new FileOutputStream(changelogFile));
-
-        } finally {
-            if (w != null) w.close();
-        }
     }
 }
