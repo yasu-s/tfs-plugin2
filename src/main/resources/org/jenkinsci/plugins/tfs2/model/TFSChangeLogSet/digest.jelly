@@ -1,17 +1,54 @@
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <st:documentation>
+        Displays the Team Foundation Server change log digest.
+        <st:attribute name="changesBaseUrl">
+            If specified, this is prepended in links to change details.
+        </st:attribute>
+    </st:documentation>
+
+    <j:set var="browser" value="${it.build.parent.scm.effectiveBrowser}"/>
+    <j:set var="map" value="${it.changeSetMap}" />
+    <j:choose>
+        <j:when test="${empty(map)}">
+            <!-- nothing -->
+        </j:when>
+        <j:when test="${size(map) == 1}">
+            ${%ChangeSet}:
+            <j:forEach var="m" items="${map}">${m.value}</j:forEach><!-- just print that one value-->
+            <br/>
+        </j:when>
+        <j:otherwise>
+            ${%ChangeSets}
+            <ul>
+                <j:forEach var="m" items="${map}">
+                    <li>${m.key} : ${m.value}</li>
+                </j:forEach>
+            </ul>
+        </j:otherwise>
+    </j:choose>
     <j:choose>
         <j:when test="${it.emptySet}">
             ${%No changes.}
         </j:when>
         <j:otherwise>
             ${%Changes}
+
             <ol>
-            <j:forEach var="cs" items="${it.items}" varStatus="loop">
-                <li>
-                    ${cs.msgAnnotated} (<a href="changes#detail${loop.index}">detail</a>)
-                </li>
-            </j:forEach>
-            </ol>
+                <j:forEach var="cs" items="${it.logs}" varStatus="loop">
+                    <li>
+                        ${cs.msgAnnotated}
+                        (<a href="${changesBaseUrl}changes#detail${loop.index}">${%detail}</a>
+
+                        <j:set var="cslink" value="${browser.getChangeSetLink(cs)}"/>
+                        <j:if test="${cslink!=null}">
+                            <j:text>/</j:text>
+                            <a href="${cslink}">${browser.descriptor.displayName}</a>
+                        </j:if>
+                        <j:text>)</j:text>
+                    </li>
+                </j:forEach>
+             </ol>
         </j:otherwise>
     </j:choose>
+
 </j:jelly>

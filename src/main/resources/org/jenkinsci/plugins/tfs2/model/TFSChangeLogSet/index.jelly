@@ -15,27 +15,32 @@
                     <a name="detail${loop.index}"></a>
                     <div class="changeset-message">
                         <b>
-                            ${%Version}
-                            <a href="${browser.getChangeSetLink(cs)}">${cs.version}</a>
+                            ${%ChangeSet}
+                            <a href="${browser.getChangeSetLink(cs)}">${cs.changeSetID}</a>
                             by <a href="${rootURL}/${cs.author.url}/">${cs.user}</a>
-                            <j:if test="${cs.checkedInBy!=null}">
-                                (<i>checked in by <a href="${rootURL}/${cs.checkedInByUser.url}/">${cs.checkedInBy}</a></i>)
-                            </j:if>
-                            <j:if test="${cs.domain!=null}">
-                                @${cs.domain}
-                            </j:if>:
-                        </b><br/>
+                        </b>
+                        <br/>
+                        <j:if test="${not cs.workItemEmpty}">
+                            <b>
+                                ${%WorkItem}
+                                <j:forEach var="w" items="${cs.workItemIDs}" varStatus="wloop">
+                                    <j:if test="${wloop.index > 0}">, </j:if>
+                                    <a href="${browser.getWorkItemLink(w.id)}">${w.id}</a>
+                                </j:forEach>
+                            </b>
+                            <br/>
+                        </j:if>
                         ${cs.msgAnnotated}
                     </div>
                 </td>
             </tr>
-            <j:forEach var="item" items="${cs.items}">
+            <j:forEach var="item" items="${cs.paths}">
                 <tr>
                     <td><t:editTypeIcon type="${item.editType}" /></td>
                     <td>
                         <a href="${browser.getFileLink(item)}">${item.path}</a>
                         <j:set var="diff" value="${browser.getDiffLink(item)}"/>
-                        <j:if test="${diff!=null}">
+                        <j:if test="${diff != null}">
                             <st:nbsp/>
                             <a href="${diff}">(diff)</a>
                         </j:if>

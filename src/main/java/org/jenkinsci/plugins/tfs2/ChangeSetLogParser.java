@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import org.apache.commons.digester.Digester;
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
 import org.jenkinsci.plugins.tfs2.model.Path;
+import org.jenkinsci.plugins.tfs2.model.WorkItemID;
 import org.jenkinsci.plugins.tfs2.model.TFSChangeLogSet;
 import org.xml.sax.SAXException;
 
@@ -34,6 +35,10 @@ public class ChangeSetLogParser extends ChangeLogParser {
         digester.addSetProperties("*/logentry/paths/path");
         digester.addBeanPropertySetter("*/logentry/paths/path","value");
         digester.addSetNext("*/logentry/paths/path","addPath");
+
+        digester.addObjectCreate("*/logentry/workitemids/workitemid", WorkItemID.class);
+        digester.addBeanPropertySetter("*/logentry/workitemids/workitemid", "id");
+        digester.addSetNext("*/logentry/workitemids/workitemid","addWorkItemID");
 
         try {
             digester.parse(changelogFile);

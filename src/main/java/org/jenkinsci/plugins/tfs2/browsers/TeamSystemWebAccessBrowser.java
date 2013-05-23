@@ -8,6 +8,7 @@ import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tfs2.Messages;
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
 import org.jenkinsci.plugins.tfs2.util.Constants;
+import org.jenkinsci.plugins.tfs2.util.TFSUtil;
 
 import hudson.scm.RepositoryBrowser;
 
@@ -51,10 +52,11 @@ public class TeamSystemWebAccessBrowser extends TeamFoundationServerRepositoryBr
 
     @Override
     public URL getChangeSetLink(LogEntry changeSet) throws IOException {
-        if (Constants.VERSION_2012_2.equals(version))
-            return new URL(String.format("%1$s%2$s/%3$s/_versionControl/changeset#cs=%4$d", serverUrl, projectCollection, project, changeSet.getChangeSetID()));
-        else
-            return new URL(String.format("%1$s%2$s/%3$s/_versionControl/changeset/%4$d", serverUrl, projectCollection, project, changeSet.getChangeSetID()));
+        return new URL(TFSUtil.getChangeSetUrl(version, serverUrl, projectCollection, project, changeSet.getChangeSetID()));
+    }
+
+    public URL getWorkItemLink(int workItemID) throws IOException {
+        return new URL(TFSUtil.getWorkItemUrl(serverUrl, projectCollection, project, workItemID));
     }
 
     @Extension

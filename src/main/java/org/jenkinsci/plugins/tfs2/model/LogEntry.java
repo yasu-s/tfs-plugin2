@@ -14,7 +14,7 @@ public class LogEntry extends hudson.scm.ChangeLogSet.Entry {
     private User author;
     private long date;
     private String msg;
-    private List<Integer> workItemIDs = new ArrayList<Integer>();
+    private List<WorkItemID> workItemIDs = new ArrayList<WorkItemID>();
     private List<Path> paths = new ArrayList<Path>();
 
     public int getChangeSetID() {
@@ -93,11 +93,15 @@ public class LogEntry extends hudson.scm.ChangeLogSet.Entry {
         return affectedPaths;
     }
 
-    public void addWorkItemID(int id) {
+    public void addWorkItemID(WorkItemID id) {
         workItemIDs.add(id);
     }
 
-    public List<Integer> getWorkItemIDs() {
+    public List<WorkItemID> getWorkItemIDs() {
         return workItemIDs;
+    }
+
+    public boolean isWorkItemEmpty() {
+        return workItemIDs.size() == 0;
     }
 }

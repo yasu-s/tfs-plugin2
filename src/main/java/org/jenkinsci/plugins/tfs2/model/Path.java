@@ -10,15 +10,15 @@ import hudson.scm.ChangeLogSet.AffectedFile;
 @ExportedBean
 public class Path implements AffectedFile {
 
-    private char action;
+    private String action;
     private String value;
 
-    public char getAction() {
+    public String getAction() {
         return action;
     }
 
     public void setAction(String action) {
-        this.action = action.charAt(0);
+        this.action = action;
     }
 
     @Exported(name="file")
@@ -35,9 +35,9 @@ public class Path implements AffectedFile {
     }
 
     public EditType getEditType() {
-        if (action == Constants.CHANGE_TYPE_ADD)
+        if (Constants.CHANGE_TYPE_ADD.equals(action))
             return EditType.ADD;
-        else if (action == Constants.CHANGE_TYPE_DELETE_CHAR)
+        else if (Constants.CHANGE_TYPE_DELETE.equals(action))
             return EditType.DELETE;
         else
             return EditType.EDIT;

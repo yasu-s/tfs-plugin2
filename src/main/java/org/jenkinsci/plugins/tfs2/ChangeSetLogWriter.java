@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
 import org.jenkinsci.plugins.tfs2.model.Path;
+import org.jenkinsci.plugins.tfs2.model.WorkItemID;
 
 
 public class ChangeSetLogWriter {
@@ -39,14 +40,14 @@ public class ChangeSetLogWriter {
         writer.println(String.format("\t\t<msg>%s</msg>", logEntry.getMsg()));
 
         writer.println("\t\t<workitemids>");
-        for (int id : logEntry.getWorkItemIDs()) {
-            writer.println(String.format("\t\t\t<workitemid>%d</workitemid>", id));
+        for (WorkItemID id : logEntry.getWorkItemIDs()) {
+            writer.println(String.format("\t\t\t<workitemid>%d</workitemid>", id.getId()));
         }
         writer.println("\t\t</workitemids>");
 
         writer.println("\t\t<paths>");
         for (Path path : logEntry.getPaths()) {
-            writer.println(String.format("\t\t\t<path action=\"%c\">%s</path>", path.getAction(), path.getValue()));
+            writer.println(String.format("\t\t\t<path action=\"%s\">%s</path>", path.getAction(), path.getValue()));
         }
         writer.println("\t\t</paths>");
 

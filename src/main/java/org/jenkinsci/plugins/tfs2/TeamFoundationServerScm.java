@@ -142,21 +142,28 @@ public class TeamFoundationServerScm extends SCM {
             state = new TFSChangeSetState(new HashMap<String, Integer>());
 
         if (project.getLastBuild() == null) {
+            listener.getLogger().println("No Last Build.");
             return PollingResult.BUILD_NOW;
         }
 
         AbstractBuild<?, ?> lastCompletedBuild = project.getLastCompletedBuild();
         if (lastCompletedBuild != null) {
             Map<String, Integer> changeSets = getRemoteChangeSets();
-            if (changeSets.size() != state.getChangeSets().size())
+            if (changeSets.size() != state.getChangeSets().size()) {
+                listener.getLogger().println("ChangeSets.size() change.");
                 return PollingResult.BUILD_NOW;
+            }
 
             for (Entry<String, Integer> entry : state.getChangeSets().entrySet()) {
                 if (changeSets.containsKey(entry.getKey())) {
-                    if (changeSets.get(entry.getKey()) != entry.getValue())
+                    if (!changeSets.get(entry.getKey()).equals(entry.getValue())) {
+                        listener.getLogger().println(String.format("ChangeSet %d -> %d", entry.getValue(), changeSets.get(entry.getKey())));
                         return PollingResult.BUILD_NOW;
-                } else
+                    }
+                } else {
+                    listener.getLogger().println("ChangeSets.size() change.");
                     return PollingResult.BUILD_NOW;
+                }
             }
         }
 
@@ -164,14 +171,20 @@ public class TeamFoundationServerScm extends SCM {
     }
 
     private Map<String, Integer> getRemoteChangeSets() {
-        TFSService service = new TFSService(serverUrl, userName, userPassword);
+        TFSService service = null;
+        Map<String, Integer> changeSets = null;
+        try {
+            service = new TFSService(serverUrl, userName, userPassword);
 
-        Map<String, Integer> changeSets = new HashMap<String, Integer>();
-        for (ProjectLocation location : locations) {
-            if (service.pathExists(location.getProjectPath())) {
-                int changeSetID = service.getChangeSetID(location.getProjectPath(), getExcludedRegionsPatterns(), getIncludedRegionsPatterns());
-                changeSets.put(location.getProjectPath(), changeSetID);
+            changeSets = new HashMap<String, Integer>();
+            for (ProjectLocation location : locations) {
+                if (service.pathExists(location.getProjectPath())) {
+                    int changeSetID = service.getChangeSetID(location.getProjectPath(), getExcludedRegionsPatterns(), getIncludedRegionsPatterns());
+                    changeSets.put(location.getProjectPath(), changeSetID);
+                }
             }
+        } finally {
+            if (service != null) service.close();
         }
         return changeSets;
     }
@@ -190,14 +203,20 @@ public class TeamFoundationServerScm extends SCM {
     }
 
     private void saveChangeSetLog(AbstractBuild<?, ?> build, File changelogFile) throws IOException, InterruptedException {
-        int previousChangeSetID = TFSUtil.getChangeSetID(getPreviousChangeSetFile(build), locations);
-        int currentChangeSetID  = TFSUtil.getChangeSetID(getChangeSetFile(build), locations);
+        File previousChangeSetFile = getPreviousChangeSetFile(build);
+        File currentChangeSetFile  = getChangeSetFile(build);
+        int previousChangeSetID = (previousChangeSetFile != null) ? TFSUtil.getChangeSetID(previousChangeSetFile, locations) : 0;
+        int currentChangeSetID  = (currentChangeSetFile != null) ? TFSUtil.getChangeSetID(currentChangeSetFile, locations) : 0;
+        TFSService service = null;
+        try {
+            service = new TFSService(serverUrl, userName, userPassword);
+            List<LogEntry> logEntrys = service.getLogEntrys(previousChangeSetID, currentChangeSetID);
 
-        TFSService service = new TFSService(serverUrl, userName, userPassword);
-        List<LogEntry> logEntrys = service.getLogEntrys(previousChangeSetID, currentChangeSetID);
-
-        ChangeSetLogWriter writer = new ChangeSetLogWriter();
-        writer.write(changelogFile, logEntrys);
+            ChangeSetLogWriter writer = new ChangeSetLogWriter();
+            writer.write(changelogFile, logEntrys);
+        } finally {
+            if (service != null) service.close();
+        }
     }
 
     private File getPreviousChangeSetFile(AbstractBuild<?, ?> build) {

@@ -6,11 +6,13 @@ import java.util.regex.Pattern;
 
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
 import org.jenkinsci.plugins.tfs2.model.Path;
+import org.jenkinsci.plugins.tfs2.model.WorkItemID;
 import org.jenkinsci.plugins.tfs2.util.Constants;
 
 import com.microsoft.tfs.core.TFSTeamProjectCollection;
 import com.microsoft.tfs.core.clients.versioncontrol.VersionControlClient;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Change;
+import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.ChangeType;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Changeset;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Item;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.ItemType;
@@ -113,18 +115,31 @@ public class TFSService {
         LogEntry logEntry = new LogEntry();
         logEntry.setChangeSetID(changeSetID);
         logEntry.setDate(changeSet.getDate().getTimeInMillis());
-        logEntry.setUser(changeSet.getCommitter());
         logEntry.setMsg(changeSet.getComment());
+
+        String debug = changeSet.getCommitter();
+        String[] names = debug.split("\\\\");
+        if (names == null || names.length < 2)
+            logEntry.setUser(changeSet.getCommitter());
+        else
+            logEntry.setUser(names[1]);
 
         for (Change change : changeSet.getChanges()) {
             Path path = new Path();
-            path.setAction(change.getChangeType().toString());
+
+            if (change.getChangeType().contains(ChangeType.ADD))
+                path.setAction(Constants.CHANGE_TYPE_ADD);
+            else if (change.getChangeType().contains(ChangeType.DELETE))
+                path.setAction(Constants.CHANGE_TYPE_DELETE);
+            else
+                path.setAction(Constants.CHANGE_TYPE_EDIT);
+
             path.setValue(change.getItem().getServerItem());
             logEntry.addPath(path);
         }
 
         for (WorkItem workItem : changeSet.getWorkItems(workItemClient)) {
-            logEntry.addWorkItemID(workItem.getID());
+            logEntry.addWorkItemID(new WorkItemID(workItem.getID()));
         }
 
         return logEntry;
@@ -132,7 +147,17 @@ public class TFSService {
 
     public List<LogEntry> getLogEntrys(int previousChangeSetID, int currentChangeSetID) {
         List<LogEntry> items = new ArrayList<LogEntry>();
-        for (int i = previousChangeSetID; i <= currentChangeSetID; items.add(getLogEntry(i++))) ;
+        if (previousChangeSetID <= 0)
+            items.add(getLogEntry(currentChangeSetID));
+        else
+            for (int i = currentChangeSetID; i > previousChangeSetID; items.add(getLogEntry(i--))) ;
         return items;
     }
+
+    public void close() {
+        if (workItemClient != null) workItemClient.close();
+        if (versionClient != null) versionClient.close();
+        if (tfsCollection != null) tfsCollection.close();
+    }
+
 }
