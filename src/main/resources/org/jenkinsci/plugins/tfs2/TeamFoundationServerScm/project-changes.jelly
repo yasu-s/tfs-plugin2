@@ -23,7 +23,7 @@
 
                                 <j:set var="cslink" value="${browser.getChangeSetLink(c)}"/>
                                 <j:choose>
-                                    <j:when test="${cslink!=null}">
+                                    <j:when test="${cslink != null}">
                                         <a href="${cslink}">${browser.descriptor.displayName}</a>
                                     </j:when>
                                     <j:otherwise>

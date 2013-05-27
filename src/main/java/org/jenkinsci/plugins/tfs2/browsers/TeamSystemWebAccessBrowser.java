@@ -7,6 +7,7 @@ import hudson.model.Descriptor;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tfs2.Messages;
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
+import org.jenkinsci.plugins.tfs2.model.Path;
 import org.jenkinsci.plugins.tfs2.util.Constants;
 import org.jenkinsci.plugins.tfs2.util.TFSUtil;
 
@@ -14,6 +15,7 @@ import hudson.scm.RepositoryBrowser;
 
 import java.io.IOException;
 import java.net.URL;
+import java.net.URLEncoder;
 
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -57,6 +59,18 @@ public class TeamSystemWebAccessBrowser extends TeamFoundationServerRepositoryBr
 
     public URL getWorkItemLink(int workItemID) throws IOException {
         return new URL(TFSUtil.getWorkItemUrl(serverUrl, projectCollection, project, workItemID));
+    }
+
+    public URL getFileLink(String path) throws IOException {
+        String encodePath = URLEncoder.encode(path, "UTF-8");
+        return new URL(TFSUtil.getFileUrl(serverUrl, projectCollection, project, encodePath));
+    }
+
+    public URL getDiffLink(String action, String path, int changeSetID) throws IOException {
+        if (!Constants.CHANGE_TYPE_EDIT.equals(action))
+            return null;
+        String encodePath = URLEncoder.encode(path, "UTF-8");
+        return new URL(TFSUtil.getDiffUrl(serverUrl, projectCollection, project, encodePath, changeSetID));
     }
 
     @Extension

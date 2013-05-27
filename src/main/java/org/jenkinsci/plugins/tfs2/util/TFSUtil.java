@@ -29,6 +29,14 @@ public abstract class TFSUtil {
         return String.format("%s%s/%s/_workitems#id=%d&_a=edit", serverUrl, projectCollection, project, workItemID);
     }
 
+    public static String getFileUrl(String serverUrl, String projectCollection, String project, String filePath) {
+        return String.format("%s%s/%s/_versionControl#path=%s&_a=contents", serverUrl, projectCollection, project, filePath);
+    }
+
+    public static String getDiffUrl(String serverUrl, String projectCollection, String project, String filePath, int changeSetID) {
+        return String.format("%s%s/%s/_versionControl#path=%s&mversion=%d&_a=compare", serverUrl, projectCollection, project, filePath, changeSetID);
+    }
+
     public static Map<String, Integer> parseChangeSetFile(File file, ProjectLocation[] locations) throws IOException {
         Map<String, Integer> changeSets = new HashMap<String, Integer>();
 
