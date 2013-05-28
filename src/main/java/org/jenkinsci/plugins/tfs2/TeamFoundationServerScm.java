@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.tfs2;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tfs2.browsers.TeamFoundationServerRepositoryBrowser;
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
+import org.jenkinsci.plugins.tfs2.model.Path;
 import org.jenkinsci.plugins.tfs2.service.TFSService;
 import org.jenkinsci.plugins.tfs2.util.TFSUtil;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -24,6 +26,7 @@ import hudson.model.BuildListener;
 import hudson.model.TaskListener;
 import hudson.model.AbstractBuild;
 import hudson.model.AbstractProject;
+import hudson.scm.EditType;
 import hudson.scm.SCM;
 import hudson.scm.ChangeLogParser;
 import hudson.scm.PollingResult;
@@ -194,29 +197,97 @@ public class TeamFoundationServerScm extends SCM {
     public boolean checkout(AbstractBuild<?, ?> build, Launcher launcher, FilePath workspace, BuildListener listener, File changelogFile) throws IOException, InterruptedException {
         Map<String, Integer> changeSets = getRemoteChangeSets();
 
-
         TFSUtil.saveChangeSetFile(getChangeSetFile(build), changeSets);
 
-        saveChangeSetLog(build, changelogFile);
+        int previousChangeSetID = getPreviousChangeSetID(build);
+        int currentChangeSetID  = getCurrentChangeSetID(build);
+        TFSService service = null;
+
+        try {
+            service = new TFSService(serverUrl, userName, userPassword);
+
+            if (previousChangeSetID <= 0 || build.getWorkspace().list().size() == 0)
+                downloadAll(service, build, listener);
+            else
+                downloadChangeSet(service, build, listener, previousChangeSetID, currentChangeSetID);
+
+            saveChangeSetLog(service, changelogFile, previousChangeSetID, currentChangeSetID);
+        } catch (Exception e) {
+            listener.getLogger().println(e.getMessage());
+        } finally {
+            if (service != null) service.close();
+        }
 
         return true;
     }
 
-    private void saveChangeSetLog(AbstractBuild<?, ?> build, File changelogFile) throws IOException, InterruptedException {
+    private int getPreviousChangeSetID(AbstractBuild<?, ?> build) throws IOException, InterruptedException {
         File previousChangeSetFile = getPreviousChangeSetFile(build);
-        File currentChangeSetFile  = getChangeSetFile(build);
-        int previousChangeSetID = (previousChangeSetFile != null) ? TFSUtil.getChangeSetID(previousChangeSetFile, locations) : 0;
-        int currentChangeSetID  = (currentChangeSetFile != null) ? TFSUtil.getChangeSetID(currentChangeSetFile, locations) : 0;
-        TFSService service = null;
-        try {
-            service = new TFSService(serverUrl, userName, userPassword);
-            List<LogEntry> logEntrys = service.getLogEntrys(previousChangeSetID, currentChangeSetID);
+        return (previousChangeSetFile != null) ? TFSUtil.getChangeSetID(previousChangeSetFile, locations) : 0;
+    }
 
-            ChangeSetLogWriter writer = new ChangeSetLogWriter();
-            writer.write(changelogFile, logEntrys);
-        } finally {
-            if (service != null) service.close();
+    private int getCurrentChangeSetID(AbstractBuild<?, ?> build) throws IOException, InterruptedException {
+        File currentChangeSetFile  = getChangeSetFile(build);
+        return (currentChangeSetFile != null) ? TFSUtil.getChangeSetID(currentChangeSetFile, locations) : 0;
+    }
+
+    private void saveChangeSetLog(TFSService service, File changelogFile, int previousChangeSetID, int currentChangeSetID ) throws IOException, InterruptedException {
+        List<LogEntry> logEntrys = service.getLogEntrys(previousChangeSetID, currentChangeSetID);
+        ChangeSetLogWriter writer = new ChangeSetLogWriter();
+        writer.write(changelogFile, logEntrys);
+    }
+
+    private void downloadAll(TFSService service, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException {
+        listener.getLogger().println("downloadAll() - start");
+        for (ProjectLocation location : locations) {
+            List<String> paths = service.getServerItems(location.getProjectPath());
+            listener.getLogger().println("Download Files " + paths.size());
+            service.downloadFiles(paths, location.getProjectPath(), build.getWorkspace().child(location.getLocalDirectory()).getRemote());
+
+            for (String path : paths) {
+                listener.getLogger().println("Add File :" + path);
+            }
         }
+        listener.getLogger().println("downloadAll() - end");
+    }
+
+    private void downloadChangeSet(TFSService service, AbstractBuild<?, ?> build, BuildListener listener, int previousChangeSetID, int currentChangeSetID) throws IOException, InterruptedException {
+        listener.getLogger().println("downloadChangeSet() - start");
+
+        for (int i = previousChangeSetID + 1; i <= currentChangeSetID; i++) {
+            for (ProjectLocation location : locations) {
+                List<Path> paths = service.getServerItemPaths(i);
+                List<String> addPaths = new ArrayList<String>();
+                List<String> delPaths = new ArrayList<String>();
+
+                for (Path path : paths) {
+                    if (!path.getPath().startsWith(location.getProjectPath()))
+                        continue;
+
+                    if (path.getEditType() == EditType.ADD) {
+                        listener.getLogger().println("Add File : " + path.getPath());
+                        addPaths.add(path.getPath());
+                    } else if (path.getEditType() == EditType.DELETE) {
+                        listener.getLogger().println("Delete File : " + path.getPath());
+                        delPaths.add(path.getPath());
+                    } else {
+                        listener.getLogger().println("Edit File : " + path.getPath());
+                        addPaths.add(path.getPath());
+                    }
+                }
+
+                FilePath localDir = build.getWorkspace().child(location.getLocalDirectory());
+                for (String delPath : delPaths) {
+                    String d = delPath.replace(location.getProjectPath(), "");
+                    if (d.startsWith("/")) d = d.substring(1);
+                    localDir.child(d).delete();
+                }
+
+                listener.getLogger().println("Download Files " + addPaths.size());
+                service.downloadFiles(addPaths, location.getProjectPath(), localDir.getRemote());
+            }
+        }
+        listener.getLogger().println("downloadChangeSet() - end");
     }
 
     private File getPreviousChangeSetFile(AbstractBuild<?, ?> build) {

@@ -31,9 +31,9 @@ public class TFSService {
     private String userName;
     private String userPassword;
 
-    private TFSTeamProjectCollection tfsCollection;
-    private VersionControlClient versionClient;
-    private WorkItemClient workItemClient;
+    protected TFSTeamProjectCollection tfsCollection;
+    protected VersionControlClient versionClient;
+    protected WorkItemClient workItemClient;
 
     public TFSService(String serverUrl, String userName, String userPassword) {
         Credentials credentials = new UsernamePasswordCredentials(userName, userPassword);
@@ -125,16 +125,7 @@ public class TFSService {
             logEntry.setUser(names[1]);
 
         for (Change change : changeSet.getChanges()) {
-            Path path = new Path();
-
-            if (change.getChangeType().contains(ChangeType.ADD))
-                path.setAction(Constants.CHANGE_TYPE_ADD);
-            else if (change.getChangeType().contains(ChangeType.DELETE))
-                path.setAction(Constants.CHANGE_TYPE_DELETE);
-            else
-                path.setAction(Constants.CHANGE_TYPE_EDIT);
-
-            path.setValue(change.getItem().getServerItem());
+            Path path = createPath(change);
             logEntry.addPath(path);
         }
 
@@ -145,6 +136,18 @@ public class TFSService {
         return logEntry;
     }
 
+    public Path createPath(Change change) {
+        Path path = new Path();
+        if (change.getChangeType().contains(ChangeType.ADD))
+            path.setAction(Constants.CHANGE_TYPE_ADD);
+        else if (change.getChangeType().contains(ChangeType.DELETE))
+            path.setAction(Constants.CHANGE_TYPE_DELETE);
+        else
+            path.setAction(Constants.CHANGE_TYPE_EDIT);
+        path.setValue(change.getItem().getServerItem());
+        return path;
+    }
+
     public List<LogEntry> getLogEntrys(int previousChangeSetID, int currentChangeSetID) {
         List<LogEntry> items = new ArrayList<LogEntry>();
         if (previousChangeSetID <= 0)
@@ -152,6 +155,41 @@ public class TFSService {
         else
             for (int i = currentChangeSetID; i > previousChangeSetID; items.add(getLogEntry(i--))) ;
         return items;
+    }
+
+    public List<String> getServerItems(String parentPath) {
+        List<String> paths = new ArrayList<String>();
+        Item item = versionClient.getItem(parentPath);
+
+        if (item.getItemType() == ItemType.FOLDER) {
+            for (Item i : versionClient.getItems(parentPath, RecursionType.FULL).getItems()) {
+                paths.add(i.getServerItem());
+            }
+        } else {
+            paths.add(item.getServerItem());
+        }
+
+        return paths;
+    }
+
+    public List<Path> getServerItemPaths(int changeSetID) {
+        List<Path> paths = new ArrayList<Path>();
+        Changeset changeset = getChangeSet(changeSetID);
+        for (Change c : changeset.getChanges()) {
+            Path path = createPath(c);
+            paths.add(path);
+        }
+        return paths;
+    }
+
+    public void downloadFiles(List<String> paths, String serverPath, String localDirectory) {
+        for (String path : paths) {
+            Item item = versionClient.getItem(path);
+            if (item.getItemType() == ItemType.FILE) {
+                String filePath = localDirectory + "\\" + item.getServerItem().replace(serverPath, "");
+                item.downloadFile(versionClient, filePath);
+            }
+        }
     }
 
     public void close() {

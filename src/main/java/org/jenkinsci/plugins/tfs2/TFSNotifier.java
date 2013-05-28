@@ -56,7 +56,8 @@ public class TFSNotifier extends Notifier {
                 int changeSetID = service.getChangeSetID(location.getProjectPath(), excludedPatterns, includedPatterns);
 
                 if (!changeSets.containsKey(location.getProjectPath()) || changeSets.get(location.getProjectPath()) < changeSetID) {
-                    currentChangeSetID = changeSetID;
+                    if (currentChangeSetID < changeSetID)
+                        currentChangeSetID = changeSetID;
                     modified = true;
                 }
 
