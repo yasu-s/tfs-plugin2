@@ -151,43 +151,41 @@ public class TeamFoundationServerScm extends SCM {
 
         AbstractBuild<?, ?> lastCompletedBuild = project.getLastCompletedBuild();
         if (lastCompletedBuild != null) {
-            Map<String, Integer> changeSets = getRemoteChangeSets();
-            if (changeSets.size() != state.getChangeSets().size()) {
-                listener.getLogger().println("ChangeSets.size() change.");
-                return PollingResult.BUILD_NOW;
-            }
-
-            for (Entry<String, Integer> entry : state.getChangeSets().entrySet()) {
-                if (changeSets.containsKey(entry.getKey())) {
-                    if (!changeSets.get(entry.getKey()).equals(entry.getValue())) {
-                        listener.getLogger().println(String.format("ChangeSet %d -> %d", entry.getValue(), changeSets.get(entry.getKey())));
-                        return PollingResult.BUILD_NOW;
-                    }
-                } else {
+            TFSService service = null;
+            try {
+                service = new TFSService(serverUrl, userName, userPassword);
+                Map<String, Integer> changeSets = getRemoteChangeSets(service);
+                if (changeSets.size() != state.getChangeSets().size()) {
                     listener.getLogger().println("ChangeSets.size() change.");
                     return PollingResult.BUILD_NOW;
                 }
+
+                for (Entry<String, Integer> entry : state.getChangeSets().entrySet()) {
+                    if (changeSets.containsKey(entry.getKey())) {
+                        if (!changeSets.get(entry.getKey()).equals(entry.getValue())) {
+                            listener.getLogger().println(String.format("ChangeSet %d -> %d", entry.getValue(), changeSets.get(entry.getKey())));
+                            return PollingResult.BUILD_NOW;
+                        }
+                    } else {
+                        listener.getLogger().println("ChangeSets.size() change.");
+                        return PollingResult.BUILD_NOW;
+                    }
+                }
+            } finally {
+                if (service != null) service.close();
             }
         }
 
         return PollingResult.NO_CHANGES;
     }
 
-    private Map<String, Integer> getRemoteChangeSets() {
-        TFSService service = null;
-        Map<String, Integer> changeSets = null;
-        try {
-            service = new TFSService(serverUrl, userName, userPassword);
-
-            changeSets = new HashMap<String, Integer>();
-            for (ProjectLocation location : locations) {
-                if (service.pathExists(location.getProjectPath())) {
-                    int changeSetID = service.getChangeSetID(location.getProjectPath(), getExcludedRegionsPatterns(), getIncludedRegionsPatterns());
-                    changeSets.put(location.getProjectPath(), changeSetID);
-                }
+    private Map<String, Integer> getRemoteChangeSets(TFSService service) {
+        Map<String, Integer> changeSets = new HashMap<String, Integer>();
+        for (ProjectLocation location : locations) {
+            if (service.pathExists(location.getProjectPath())) {
+                int changeSetID = service.getChangeSetID(location.getProjectPath(), getExcludedRegionsPatterns(), getIncludedRegionsPatterns());
+                changeSets.put(location.getProjectPath(), changeSetID);
             }
-        } finally {
-            if (service != null) service.close();
         }
         return changeSets;
     }
@@ -195,27 +193,33 @@ public class TeamFoundationServerScm extends SCM {
 
     @Override
     public boolean checkout(AbstractBuild<?, ?> build, Launcher launcher, FilePath workspace, BuildListener listener, File changelogFile) throws IOException, InterruptedException {
-        Map<String, Integer> changeSets = getRemoteChangeSets();
-
-        TFSUtil.saveChangeSetFile(getChangeSetFile(build), changeSets);
-
-        int previousChangeSetID = getPreviousChangeSetID(build);
-        int currentChangeSetID  = getCurrentChangeSetID(build);
         TFSService service = null;
-
         try {
+            listener.getLogger().println("checkout - start");
+
             service = new TFSService(serverUrl, userName, userPassword);
 
-            if (previousChangeSetID <= 0 || build.getWorkspace().list().size() == 0)
+            Map<String, Integer> changeSets = getRemoteChangeSets(service);
+            TFSUtil.saveChangeSetFile(getChangeSetFile(build), changeSets);
+
+            listener.getLogger().println("saveChangeSetFile - Success");
+
+            int previousChangeSetID = getPreviousChangeSetID(build);
+            int currentChangeSetID  = getCurrentChangeSetID(build);
+
+            if (previousChangeSetID <= 0)
                 downloadAll(service, build, listener);
             else
                 downloadChangeSet(service, build, listener, previousChangeSetID, currentChangeSetID);
 
             saveChangeSetLog(service, changelogFile, previousChangeSetID, currentChangeSetID);
+
+            listener.getLogger().println("saveChangeSetLog - Success");
         } catch (Exception e) {
             listener.getLogger().println(e.getMessage());
         } finally {
             if (service != null) service.close();
+            listener.getLogger().println("checkout - end");
         }
 
         return true;
@@ -241,7 +245,7 @@ public class TeamFoundationServerScm extends SCM {
         listener.getLogger().println("downloadAll() - start");
         for (ProjectLocation location : locations) {
             List<String> paths = service.getServerItems(location.getProjectPath());
-            listener.getLogger().println("Download Files " + paths.size());
+            listener.getLogger().println("Project Path '" + location.getProjectPath() + "' Download Files " + paths.size());
             service.downloadFiles(paths, location.getProjectPath(), build.getWorkspace().child(location.getLocalDirectory()).getRemote());
 
             for (String path : paths) {
@@ -260,6 +264,7 @@ public class TeamFoundationServerScm extends SCM {
                 List<String> addPaths = new ArrayList<String>();
                 List<String> delPaths = new ArrayList<String>();
 
+                listener.getLogger().println("Project Path '" + location.getProjectPath() + "'");
                 for (Path path : paths) {
                     if (!path.getPath().startsWith(location.getProjectPath()))
                         continue;
@@ -291,11 +296,11 @@ public class TeamFoundationServerScm extends SCM {
     }
 
     private File getPreviousChangeSetFile(AbstractBuild<?, ?> build) {
-        AbstractBuild<?, ?> previousBuild = null;
+        AbstractBuild<?, ?> b = build;
         File previousFile = null;
-        while ((previousBuild = build.getPreviousBuild()) != null) {
-            if (getChangeSetFile(previousBuild).exists()) {
-                previousFile = getChangeSetFile(previousBuild);
+        while ((b = b.getPreviousBuild()) != null) {
+            if (getChangeSetFile(b).exists()) {
+                previousFile = getChangeSetFile(b);
                 break;
             }
         }
