@@ -207,7 +207,10 @@ public class TeamFoundationServerScm extends SCM {
             int previousChangeSetID = getPreviousChangeSetID(build);
             int currentChangeSetID  = getCurrentChangeSetID(build);
 
-            if (previousChangeSetID <= 0)
+            if (!build.getWorkspace().exists() || build.getWorkspace().list().size() == 0) {
+                listener.getLogger().println("no workspace items.");
+                downloadAll(service, build, listener);
+            } else if (previousChangeSetID <= 0)
                 downloadAll(service, build, listener);
             else
                 downloadChangeSet(service, build, listener, previousChangeSetID, currentChangeSetID);
