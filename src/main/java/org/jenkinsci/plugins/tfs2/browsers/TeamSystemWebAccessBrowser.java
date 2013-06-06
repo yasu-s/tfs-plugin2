@@ -7,7 +7,6 @@ import hudson.model.Descriptor;
 import org.apache.commons.lang.StringUtils;
 import org.jenkinsci.plugins.tfs2.Messages;
 import org.jenkinsci.plugins.tfs2.model.LogEntry;
-import org.jenkinsci.plugins.tfs2.model.Path;
 import org.jenkinsci.plugins.tfs2.util.Constants;
 import org.jenkinsci.plugins.tfs2.util.TFSUtil;
 

@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.tfs2;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.List;
 
@@ -16,7 +17,7 @@ public class ChangeSetLogWriter {
     public void write(File changelogFile, List<LogEntry> logEntrys) throws IOException, InterruptedException {
         PrintWriter writer = null;
         try {
-            writer = new PrintWriter(new FileOutputStream(changelogFile));
+            writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(changelogFile), "UTF-8"));
 
             writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
             writer.println("<log>");
