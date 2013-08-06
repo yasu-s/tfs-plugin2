@@ -171,6 +171,8 @@ public class TeamFoundationServerScm extends SCM {
                         return PollingResult.BUILD_NOW;
                     }
                 }
+            } catch (Exception e) {
+                e.printStackTrace(listener.getLogger());
             } finally {
                 if (service != null) service.close();
             }
@@ -219,7 +221,7 @@ public class TeamFoundationServerScm extends SCM {
 
             listener.getLogger().println("saveChangeSetLog - Success");
         } catch (Exception e) {
-            listener.getLogger().println(e.getMessage());
+            e.printStackTrace(listener.getLogger());
         } finally {
             if (service != null) service.close();
             listener.getLogger().println("checkout - end");

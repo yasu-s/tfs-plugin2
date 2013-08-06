@@ -193,9 +193,9 @@ public class TFSService {
     }
 
     public void close() {
-        if (workItemClient != null) workItemClient.close();
-        if (versionClient != null) versionClient.close();
-        if (tfsCollection != null) tfsCollection.close();
+        try { if (workItemClient != null) workItemClient.close(); } finally {}
+        try { if (versionClient != null) versionClient.close(); } finally {}
+        try { if (tfsCollection != null) tfsCollection.close(); } finally {}
     }
 
 }
