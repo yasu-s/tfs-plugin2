@@ -243,7 +243,7 @@ public class TeamFoundationServerScm extends SCM {
     private void saveChangeSetLog(TFSService service, File changelogFile, int previousChangeSetID, int currentChangeSetID ) throws IOException, InterruptedException {
         List<LogEntry> logEntrys = service.getLogEntrys(previousChangeSetID, currentChangeSetID);
         ChangeSetLogWriter writer = new ChangeSetLogWriter();
-        writer.write(changelogFile, logEntrys);
+        writer.write(changelogFile, TFSUtil.exceptNotIncludeLogEntry(logEntrys, locations));
     }
 
     private void downloadAll(TFSService service, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException {

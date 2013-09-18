@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,8 @@ import java.util.Map.Entry;
 
 import org.jenkinsci.plugins.tfs2.Messages;
 import org.jenkinsci.plugins.tfs2.TeamFoundationServerScm.ProjectLocation;
+import org.jenkinsci.plugins.tfs2.model.LogEntry;
+import org.jenkinsci.plugins.tfs2.model.Path;
 import org.jenkinsci.plugins.tfs2.service.TFSService;
 
 
@@ -136,5 +139,28 @@ public abstract class TFSUtil {
             if (service != null) service.close();
         }
         return sb.toString();
+    }
+
+    public static List<LogEntry> exceptNotIncludeLogEntry(List<LogEntry> logEntrys, ProjectLocation[] locations) {
+        List<LogEntry> resultEntrys = new ArrayList<LogEntry>(logEntrys.size());
+
+        for (LogEntry entry : logEntrys) {
+            boolean check = false;
+            for (Path path : entry.getPaths()) {
+                for (ProjectLocation location : locations) {
+                    if (path.getPath().indexOf(location.getProjectPath()) >= 0) {
+                        check = true;
+                        break;
+                    }
+                }
+
+                if (check) break;
+            }
+
+            if (check)
+                resultEntrys.add(entry);
+        }
+
+        return resultEntrys;
     }
 }
